@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 from constructs import Construct
 from cdktf import App, TerraformOutput, TerraformStack
-from imports.oci import (CoreDhcpOptionsOptions, CoreVcn, OciProvider,
+from imports.oci import (CoreDhcpOptionsOptions, CoreRouteTableRouteRules, CoreVcn, OciProvider,
     CoreInstance,
     CoreSubnet,
     CoreDhcpOptions,
     CoreDhcpOptionsOptions,
     CoreInstanceCreateVnicDetails,
+    CoreInternetGateway,
+    CoreRouteTable,
+    CoreRouteTableAttachment,
     )
-from account import get_compartment_id, get_availability_domain
+from account import get_compartment_id, get_availability_domain, get_key_pair
 
 class MyStack(TerraformStack):
     def __init__(self, scope: Construct, ns: str):
@@ -16,6 +19,7 @@ class MyStack(TerraformStack):
         desired_compartment_id: str = get_compartment_id()
         desired_availability_domain = get_availability_domain()
         desired_image_id = "ocid1.image.oc1.uk-london-1.aaaaaaaa7p27563e2wyhmn533gp7g3wbohrhjacsy3r5rpujyr6n6atqppuq"
+        public_key = get_key_pair()
 
         # define resources here
         OciProvider(self, "oci",
@@ -43,6 +47,23 @@ class MyStack(TerraformStack):
                 display_name="public_subnet",
                 dhcp_options_id=dhcp.id)
 
+        igateway = CoreInternetGateway(self, "InternetGateway",
+                compartment_id=desired_compartment_id,
+                vcn_id=vcn.id)
+
+        route_table = CoreRouteTable(self, "route_table",
+                compartment_id=desired_compartment_id,
+                vcn_id=vcn.id,
+                route_rules=[
+                    CoreRouteTableRouteRules(
+                        network_entity_id=igateway.id,
+                        destination="0.0.0.0/0"
+                        ) 
+                    ])
+        CoreRouteTableAttachment(self, "RouteAttachment",
+                subnet_id=public_subnet.id,
+                route_table_id=route_table.id)
+
         
         vm = CoreInstance(self, "instance",
                 compartment_id=desired_compartment_id,
@@ -52,7 +73,10 @@ class MyStack(TerraformStack):
                 create_vnic_details=[
                     CoreInstanceCreateVnicDetails(
                         subnet_id=public_subnet.id)
-                    ])
+                    ],
+                metadata={
+                    "ssh_authorized_keys": public_key
+                    })
 
         TerraformOutput(self, "vcn", 
                 value=vcn.cidr_block)

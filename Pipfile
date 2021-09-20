@@ -9,3 +9,4 @@ python_version = "3"
 [packages]
 cdktf = "~=0.6.2.dev338"
 oci = "*"
+pycryptodome = "*"

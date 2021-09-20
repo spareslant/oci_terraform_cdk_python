@@ -1,4 +1,9 @@
 import oci
+from Crypto.PublicKey import RSA
+import os
+
+
+keys_dir = "keys"
 
 config = oci.config.from_file("~/.oci/config", "MYPROFILE")
 identity = oci.identity.IdentityClient(config)
@@ -33,8 +38,36 @@ def get_compartment_id(comp_name="ocilabs") -> str:
             desired_compartment_id = comp.id
     return desired_compartment_id
 
+def generate_key_pair():
+    os.mkdir("keys")
+    key = RSA.generate(2048)
+    private_key = key.export_key("PEM")
+    file_out = open(f"{keys_dir}/private.pem", "wb")
+    file_out.write(private_key)
+    file_out.close()
+    os.chmod(f"{keys_dir}/private.pem", 0o600)
+
+    public_key = key.publickey().export_key("OpenSSH")
+    file_out = open(f"{keys_dir}/public.pem", "wb")
+    file_out.write(public_key)
+    file_out.close()
+
+    return public_key.decode("utf-8")
+
+
+def get_key_pair(use_existing_keys=True):
+    if use_existing_keys:
+        if not os.path.isfile(f"{keys_dir}/private.pem"):
+            return generate_key_pair()
+        else:
+            with open(f"{keys_dir}/public.pem", 'rb') as f:
+                public_key = f.read()
+            return public_key.decode("utf-8")
+    else:
+        return generate_key_pair()
 
 
 if  __name__ == '__main__':
     print(f"desired_compartment_id = {get_compartment_id()}")
-    print(f"availability_domain = {get_availability_domain().name}")
+    print(f"availability_domain = {get_availability_domain()}")
+    print(get_key_pair())
