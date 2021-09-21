@@ -1,11 +1,14 @@
+#! /usr/bin/env python
+
 import oci
 from Crypto.PublicKey import RSA
 import os
 
-
 keys_dir = "keys"
+profile_name = "cdk-user"
+compartment_name = "CDK"
 
-config = oci.config.from_file("~/.oci/config", "MYPROFILE")
+config = oci.config.from_file("~/.oci/config", profile_name)
 identity = oci.identity.IdentityClient(config)
 user = identity.get_user(config["user"]).data
 compartment_id = user.compartment_id
@@ -24,7 +27,7 @@ def get_availability_domain():
 
     return availability_domain.name
 
-def get_compartment_id(comp_name="ocilabs") -> str:
+def get_compartment_id(comp_name=compartment_name) -> str:
 
     desired_compartment_id: str = ""
 
@@ -33,7 +36,7 @@ def get_compartment_id(comp_name="ocilabs") -> str:
             'record',
             compartment_id,
             compartment_id_in_subtree=True,
-            lifecycle_state="ACTIVE", access_level="ACCESSIBLE"):
+            lifecycle_state="ACTIVE"):
         if comp.name == comp_name:
             desired_compartment_id = comp.id
     return desired_compartment_id
